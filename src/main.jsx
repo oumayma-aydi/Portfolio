@@ -13,6 +13,11 @@ const LINKS = {
   phoneHref: 'tel:+21658972061',
   linkedin: 'https://www.linkedin.com/in/oumayma-aydi',
   github: 'https://github.com/oumayma-aydi',
+  // Contact form. Leave empty to open the visitor's email app instead (works with no setup).
+  // Web3Forms: formEndpoint 'https://api.web3forms.com/submit' + formAccessKey 'your-key'
+  // Formspree: formEndpoint 'https://formspree.io/f/xxxxxxx' (no key needed)
+  formEndpoint: 'https://api.web3forms.com/submit',
+  formAccessKey: 'https://form.typeform.com/to/mNHT04fm',
   cvEn: import.meta.env.BASE_URL + 'Oumayma_Aydi_CV_EN.pdf',
   cvFr: import.meta.env.BASE_URL + 'Oumayma_Aydi_CV_FR.pdf'
 };
@@ -213,6 +218,64 @@ function Photo({ name, alt, className = 'photo', frame, position = 'center' }) {
 
   if (!frame) return img;
   return <div style={{ position: 'relative', overflow: 'hidden', width: '100%', ...frames[frame] }}>{img}</div>;
+}
+
+function ContactForm() {
+  const [status, setStatus] = useState('idle');
+
+  const onSubmit = async e => {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const d = Object.fromEntries(new FormData(form));
+    if (d.website) return; // honeypot: bots fill this hidden field
+    const name = `${d.firstName} ${d.lastName}`.trim();
+
+    if (!LINKS.formEndpoint) {
+      const body = `${d.message}\n\n${name}\n${d.email}`;
+      window.location.href = `mailto:${LINKS.email}?subject=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(body)}`;
+      setStatus('mailto');
+      return;
+    }
+
+    setStatus('sending');
+    try {
+      const res = await fetch(LINKS.formEndpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+        body: JSON.stringify({
+          ...(LINKS.formAccessKey ? { access_key: LINKS.formAccessKey } : {}),
+          from_name: 'Portfolio',
+          name, email: d.email, subject: d.subject, message: d.message
+        })
+      });
+      if (!res.ok) throw new Error('failed');
+      form.reset();
+      setStatus('sent');
+    } catch {
+      setStatus('error');
+    }
+  };
+
+  const messages = {
+    sent: 'Thank you, your message is on its way. I will reply soon.',
+    mailto: 'Your email app should open with the message ready to send.',
+    error: `Something went wrong. Please write to me directly at ${LINKS.email}.`
+  };
+
+  return (
+    <form className="contact-form" onSubmit={onSubmit}>
+      <input name="firstName" placeholder="First name" aria-label="First name" autoComplete="given-name" required />
+      <input name="lastName" placeholder="Last name" aria-label="Last name" autoComplete="family-name" required />
+      <input className="full" type="email" name="email" placeholder="Email" aria-label="Email" autoComplete="email" required />
+      <input className="full" name="subject" placeholder="Subject" aria-label="Subject" required />
+      <textarea className="full" name="message" placeholder="Message" aria-label="Message" rows={4} required />
+      <input className="hp" name="website" tabIndex={-1} autoComplete="off" aria-hidden="true" />
+      <button className="send-btn" type="submit" disabled={status === 'sending'}>
+        {status === 'sending' ? 'SENDING…' : 'SEND MESSAGE'} <ArrowUpRight size={16}/>
+      </button>
+      <p className="form-status" role="status" aria-live="polite">{messages[status] || ''}</p>
+    </form>
+  );
 }
 
 function App() {
@@ -418,15 +481,19 @@ function App() {
         <section className="contact-section" id="contact"><div className="section-wrap contact-wrap">
           <div className="section-kicker reveal"><span>07 / CONTACT</span><span>INTERNSHIP FROM FEBRUARY 2027</span></div>
           <div className="contact-main reveal">
-            <div><p className="eyebrow">LET’S TALK</p><h2>Let’s build something <span className="serif">safe.</span></h2><p className="contact-copy">I’m looking for a six-month final-year or research internship starting February 2027, around AI security, DevSecOps and cloud-native systems. The links to my projects are on my GitHub.</p></div>
-            <div className="contact-list">
-              <a href={'mailto:' + LINKS.email}><span>EMAIL</span><strong>{LINKS.email}</strong><ArrowUpRight size={18}/></a>
-              <a href={LINKS.phoneHref}><span>PHONE</span><strong>{LINKS.phone}</strong><Phone size={17}/></a>
-              <a href={LINKS.cvEn} download="Oumayma_Aydi_CV_EN.pdf"><span>CV · ENGLISH</span><strong>Download the PDF</strong><Download size={17}/></a>
-              <a href={LINKS.cvFr} download="Oumayma_Aydi_CV_FR.pdf"><span>CV · FRANÇAIS</span><strong>Télécharger le PDF</strong><Download size={17}/></a>
-              <a href={LINKS.linkedin} target="_blank" rel="noreferrer"><span>LINKEDIN</span><strong>linkedin.com/in/oumayma-aydi</strong><Linkedin size={17}/></a>
-              <a href={LINKS.github} target="_blank" rel="noreferrer"><span>GITHUB</span><strong>github.com/oumayma-aydi</strong><Github size={17}/></a>
+            <div className="contact-left">
+              <p className="eyebrow">LET’S TALK</p>
+              <h2>Let’s build something <span className="serif">safe.</span></h2>
+              <ArrowUpRight className="contact-arrow" size={56} strokeWidth={1.5} aria-hidden="true" />
+              <p className="contact-copy">I’m looking for a six-month final-year or research internship starting February 2027, around AI security, DevSecOps and cloud-native systems.</p>
+              <div className="contact-icons">
+                <a href={'mailto:' + LINKS.email}><span className="icon-circle"><Mail size={17}/></span>{LINKS.email}</a>
+                <a href={LINKS.phoneHref}><span className="icon-circle"><Phone size={17}/></span>{LINKS.phone}</a>
+                <a href={LINKS.linkedin} target="_blank" rel="noreferrer" aria-label="LinkedIn"><span className="icon-circle"><Linkedin size={17}/></span>LINKEDIN</a>
+                <a href={LINKS.github} target="_blank" rel="noreferrer" aria-label="GitHub"><span className="icon-circle"><Github size={17}/></span>GITHUB</a>
+              </div>
             </div>
+            <ContactForm />
           </div>
           <div className="contact-bottom"><span>© 2026 OUMAYMA AYDI · TUNIS, TUNISIA</span></div>
         </div></section>
